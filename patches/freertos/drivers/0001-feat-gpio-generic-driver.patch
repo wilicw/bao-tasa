@@ -1,6 +1,6 @@
-From 854fd29629c6c5b7058423edf3da7db955a67309 Mon Sep 17 00:00:00 2001
+From 9f2d847d5761dee0ff55e9ea7868d78a3d5639f9 Mon Sep 17 00:00:00 2001
 From: William Chang <wilicw1346@gmail.com>
-Date: Fri, 21 Jul 2023 10:58:33 +0800
+Date: Fri, 21 Jul 2023 14:26:16 +0800
 Subject: [PATCH] feat(gpio): generic driver
 
 ---
