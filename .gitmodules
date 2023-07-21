@@ -1,9 +1,11 @@
 [submodule "bao-hypervisor"]
 	path = bao-hypervisor
 	url = https://github.com/bao-project/bao-hypervisor.git
+  branch = demo
 [submodule "freertos-over-bao"]
 	path = freertos-over-bao
 	url = https://github.com/bao-project/freertos-over-bao.git
+  branch = demo
 [submodule "buildroot"]
 	path = buildroot
 	url = https://github.com/buildroot/buildroot.git
