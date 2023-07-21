@@ -1,0 +1,174 @@
+From 854fd29629c6c5b7058423edf3da7db955a67309 Mon Sep 17 00:00:00 2001
+From: William Chang <wilicw1346@gmail.com>
+Date: Fri, 21 Jul 2023 10:58:33 +0800
+Subject: [PATCH] feat(gpio): generic driver
+
+---
+ src/core/inc/core.h          |  1 +
+ src/core/inc/gpio.h          | 33 ++++++++++++++++
+ src/platform/rpi4/inc/plat.h |  1 +
+ src/platform/rpi4/rpi4.c     | 74 +++++++++++++++++++++++++++++++++++-
+ 4 files changed, 108 insertions(+), 1 deletion(-)
+ create mode 100644 src/core/inc/gpio.h
+
+diff --git a/src/core/inc/core.h b/src/core/inc/core.h
+index 0a76b45..9ce6e94 100644
+--- a/src/core/inc/core.h
++++ b/src/core/inc/core.h
+@@ -20,6 +20,7 @@
+ #define MEM_BASE (0x00000000)
+ #define MEM_SIZE (0x80000000)
+ #define UART_ADDR (0xff000000)
++#define GPIO_ADDR (0xff010000)
+ #else
+ 
+ #ifndef MEM_BASE
+diff --git a/src/core/inc/gpio.h b/src/core/inc/gpio.h
+new file mode 100644
+index 0000000..45476ef
+--- /dev/null
++++ b/src/core/inc/gpio.h
+@@ -0,0 +1,33 @@
++#ifndef __GPIO_H__
++#define __GPIO_H__
++
++#include <stdint.h>
++
++#define FORCE_INLINE __attribute__((always_inline)) inline;
++
++typedef enum {
++  GPIO_INPUT = 0,
++  GPIO_OUTPUT = 1,
++} gpio_mode_t;
++
++typedef enum {
++  GPIO_PULL_NONE = 0,
++  GPIO_PULL_UP = 1,
++  GPIO_PULL_DOWN = 2,
++} gpio_pull_t;
++
++typedef enum {
++  GPIO_EDGE_NONE = 0,
++  GPIO_EDGE_RISING = 1,
++  GPIO_EDGE_FALLING = 2,
++} gpio_edge_t;
++
++inline void gpio_init(uint32_t pin, gpio_mode_t mode);
++inline void gpio_set(uint32_t pin);
++inline void gpio_clear(uint32_t pin);
++inline void gpio_toggle(uint32_t pin);
++inline uint32_t gpio_read(uint32_t pin);
++inline void gpio_pull(uint32_t pin, gpio_pull_t pull);
++inline void gpio_clear_detect_status(uint32_t pin);
++
++#endif  // __GPIO_H__
+diff --git a/src/platform/rpi4/inc/plat.h b/src/platform/rpi4/inc/plat.h
+index b5e8d00..f21da8e 100644
+--- a/src/platform/rpi4/inc/plat.h
++++ b/src/platform/rpi4/inc/plat.h
+@@ -8,6 +8,7 @@
+ #define PLAT_GICC_BASE_ADDR (0xff842000)
+ 
+ #define PLAT_UART_ADDR (0xfe215000)
++#define PLAT_GPIO_ADDR (0xfe200000)
+ #define UART_IRQ_ID (125)
+ 
+ #endif
+diff --git a/src/platform/rpi4/rpi4.c b/src/platform/rpi4/rpi4.c
+index 11340a4..0778abc 100644
+--- a/src/platform/rpi4/rpi4.c
++++ b/src/platform/rpi4/rpi4.c
+@@ -1,4 +1,5 @@
+ #include <plat.h>
++#include <gpio.h>
+ #include <8250_uart.h>
+ 
+ #define VIRT_UART16550_ADDR		    (UART_ADDR + 0x40)
+@@ -6,8 +7,11 @@
+ #define VIRT_UART_BAUDRATE		    115200
+ #define VIRT_UART_FREQ		        3000000
+ 
+-void uart_init(){
++#define readl(addr) (*((volatile uint32_t*)addr))
++#define writel(val, addr) (*((volatile uint32_t*)addr) = val)
+ 
++void uart_init()
++{
+     uart8250_init(VIRT_UART16550_ADDR, VIRT_UART_FREQ, VIRT_UART_BAUDRATE, 0, 4);
+ }
+ 
+@@ -30,3 +34,71 @@ void uart_clear_rxirq()
+ {
+     uart8250_interrupt_handler(); 
+ }
++
++#define GPSEL0 (GPIO_ADDR + 0x00)
++#define GPSET0 (GPIO_ADDR + 0x1c)
++#define GPCLR0 (GPIO_ADDR + 0x28)
++#define GPLEV0 (GPIO_ADDR + 0x34)
++#define GPEDS0 (GPIO_ADDR + 0x40)
++#define GPREN0 (GPIO_ADDR + 0x4c)
++#define GPFEN0 (GPIO_ADDR + 0x58)
++#define GPPPCR0 (GPIO_ADDR + 0xe4)
++
++void gpio_init(uint32_t pin, gpio_mode_t mode) {
++  uint32_t sel_reg = GPSEL0;
++  while (pin >= 10)
++    pin -= 10, sel_reg += 4;
++  uint32_t val = readl(sel_reg);
++  val &= ~(7 << (pin * 3));
++  val |= mode << (pin * 3);
++  writel(val, sel_reg);
++}
++
++void gpio_set(uint32_t pin) {
++  uint32_t set_reg = GPSET0;
++  while (pin >= 32)
++    pin -= 32, set_reg += 4;
++  writel(1 << pin, set_reg);
++}
++
++void gpio_clear(uint32_t pin) {
++  uint32_t clr_reg = GPCLR0;
++  while (pin >= 32)
++    pin -= 32, clr_reg += 4;
++  writel(1 << pin, clr_reg);
++}
++
++uint32_t gpio_read(uint32_t pin) {
++  uint32_t lv_reg = GPLEV0;
++  while (pin >= 32)
++    pin -= 32, lv_reg += 4;
++  uint32_t val = readl(lv_reg);
++  return (val >> pin) & 1;
++}
++
++void gpio_set_pull(uint32_t pin, gpio_pull_t pull) {
++  uint32_t pull_reg = GPPPCR0;
++  while (pin >= 16)
++    pin -= 16, pull_reg += 4;
++  uint32_t val = readl(pull_reg);
++  val &= ~(3 << (pin * 2));
++  val |= pull << (pin * 2);
++  writel(val, pull_reg);
++}
++
++void gpio_set_edge(uint32_t pin, gpio_edge_t edge) {
++  uint32_t reg = edge == GPIO_EDGE_RISING ? GPREN0 : GPFEN0;
++  while (pin >= 32)
++    pin -= 32, reg += 4;
++  uint32_t val = readl(reg);
++  val &= ~(1 << pin);
++  val |= 1 << pin;
++  writel(val, reg);
++}
++
++void gpio_clear_detect_status(uint32_t pin) {
++  uint32_t reg = GPEDS0;
++  while (pin >= 32)
++    pin -= 32, reg += 4;
++  writel(1 << pin, reg);
++}
+-- 
+2.34.1
+
