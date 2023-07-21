@@ -1,0 +1,27 @@
+[submodule "bao-hypervisor"]
+	path = bao-hypervisor
+	url = https://github.com/bao-project/bao-hypervisor.git
+[submodule "freertos-over-bao"]
+	path = freertos-over-bao
+	url = https://github.com/bao-project/freertos-over-bao.git
+[submodule "buildroot"]
+	path = buildroot
+	url = https://github.com/buildroot/buildroot.git
+	tags = 2022.11
+[submodule "u-boot"]
+	path = u-boot
+	url = https://github.com/u-boot/u-boot.git
+	tags = v2022.10
+[submodule "linux"]
+	path = linux
+	url = https://github.com/torvalds/linux.git
+	tags = v6.1
+[submodule "firmware"]
+	path = firmware
+	url = https://github.com/raspberrypi/firmware.git
+	tags = 1.20210201
+[submodule "TFA"]
+	path = TFA
+	url = https://github.com/bao-project/arm-trusted-firmware.git
+  branch = bao/demo
+
