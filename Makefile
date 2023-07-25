@@ -1,5 +1,5 @@
 pwd:=$(shell pwd)
-platform:=rpi4
+PLATFORM:=rpi4
 ARCH:=aarch64
 freertos:=freertos-over-bao
 buildroot:=buildroot
@@ -13,7 +13,7 @@ bao:=bao-hypervisor
 firmware:=firmware
 
 export LINUX_OVERRIDE_SRCDIR=$(pwd)/$(linux)
-export BAO_DEMOS_LINUX_CFG_FRAG=$(pwd)/configs/linux/base.config $(pwd)/configs/linux/$(ARCH).config $(pwd)/configs/linux/$(platform).config
+export BAO_DEMOS_LINUX_CFG_FRAG=$(pwd)/configs/linux/base.config $(pwd)/configs/linux/$(ARCH).config $(pwd)/configs/linux/$(PLATFORM).config
 export CROSS_COMPILE=aarch64-none-elf-
 
 all: init linux wrap_linux freertos rasp bao pack
@@ -22,8 +22,8 @@ init:
 	mkdir -p $(build_dir)
 
 freertos: $(freertos)/
-	$(MAKE) -C $(pwd)/$(freertos) PLATFORM=$(platform) STD_ADDR_SPACE=y -j$(proc)
-	cp $(pwd)/$(freertos)/build/$(platform)/freertos.bin $(build_dir)
+	$(MAKE) -C $(pwd)/$(freertos) PLATFORM=$(PLATFORM) STD_ADDR_SPACE=y ARCH_CPPFLAGS=-Og -j$(proc)
+	cp $(pwd)/$(freertos)/build/$(PLATFORM)/freertos.bin $(build_dir)
 
 linux: $(linux)/ $(buildroot)/
 	# Build buildroot
@@ -42,18 +42,18 @@ rasp: $(TFA)/ $(firmware)/ $(uboot)/
 	$(MAKE) -C $(pwd)/$(uboot) rpi_4_defconfig
 	$(MAKE) -C $(pwd)/$(uboot) -j$(proc)
 	cp $(pwd)/$(uboot)/u-boot.bin $(build_dir)/
-	$(MAKE) -C $(pwd)/$(TFA) PLAT=$(platform) -j$(proc)
-	cp $(pwd)/$(TFA)/build/$(platform)/release/bl31.bin $(build_dir)
+	$(MAKE) -C $(pwd)/$(TFA) PLAT=$(PLATFORM) -j$(proc)
+	cp $(pwd)/$(TFA)/build/$(PLATFORM)/release/bl31.bin $(build_dir)
 
 bao: linux freertos
 	make -C $(pwd)/$(bao) clean
 	make -C $(pwd)/$(bao)\
-		PLATFORM=$(platform)\
+		PLATFORM=$(PLATFORM)\
 		CONFIG_REPO=$(pwd)/configs\
-		CONFIG=$(platform)\
+		CONFIG=$(PLATFORM)\
     CPPFLAGS=-DBAO_DEMOS_WRKDIR_IMGS=$(build_dir)\
 		-j$(proc)
-	cp $(pwd)/$(bao)/bin/$(platform)/$(platform)/bao.bin $(build_dir)
+	cp $(pwd)/$(bao)/bin/$(PLATFORM)/$(PLATFORM)/bao.bin $(build_dir)
 
 pack:
 	cp -rf $(pwd)/$(firmware)/boot/* $(build_dir)
@@ -85,6 +85,9 @@ patches:
 		git pull --depth 1
 	-cd $(pwd)/$(firmware) &&\
 		git checkout 1.20210201 &&\
+		git pull --depth 1
+	-cd $(pwd)/$(bao) &&\
+		git checkout demo &&\
 		git pull --depth 1
 
 clean:
